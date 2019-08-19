@@ -25,6 +25,7 @@
   * [hocr-lines](#hocr-lines) -- extract the text within all the ocr_line elements
   * [hocr-merge-dc](#hocr-merge-dc) -- merge Dublin Core meta data into the hOCR HTML header
   * [hocr-pdf](#hocr-pdf) -- create a searchable PDF from a pile of hOCR and JPEG
+  * [hocr-scale](#hocr-scale) -- scale the hOCR output to the original image (used when the image may have been scaled, binarized, and pre-processed)
   * [hocr-split](#hocr-split) -- split an hOCR file into individual pages
   * [hocr-wordfreq](#hocr-wordfreq) -- calculate word frequency in an hOCR file
 * [Unit tests](#unit-tests)
@@ -206,6 +207,19 @@ hocr-pdf --savefile out.pdf <imgdir>
 ```
 
 Create a searchable PDF from a pile of hOCR and JPEG. It is important that the corresponding JPEG and hOCR files have the same name with their respective file ending. All of these files should lie in one directory, which one has to specify as an argument when calling the command, e.g. use `hocr-pdf . > out.pdf` to run the command in the current directory and save the output as `out.pdf` alternatively `hocr-pdf . --savefile out.pdf` which avoids routing the output through the terminal.
+
+### hocr-scale
+
+```
+hocr-scale [ --percent 50 ] <imgdir> > out.hocr
+hocr-scale --savefile <imgdir>
+```
+
+Scale the hOCR output for a given image to original dimensions.  Use this tool
+when a corresponding JPEG has been scaled up from the source data.  For example,
+an image might be scaled +400% for `tesseract` processing.  When combining with
+the original file, the resulting box coordinates will be in the wrong location.
+Rescaling the hOCR output will reposition the box to the appropriate coordinates.
 
 ### hocr-split
 

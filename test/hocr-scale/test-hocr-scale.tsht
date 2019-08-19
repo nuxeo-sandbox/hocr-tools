@@ -1,0 +1,16 @@
+#!/usr/bin/env tsht
+
+work="445442158_0126"
+
+which wget >/dev/null
+if [[ "$?" != 0 ]];then
+    pass "Test requires 'wget' installed"
+    exit
+fi
+exec_ok wget --quiet "http://digi.bib.uni-mannheim.de/fileadmin/digi/445442158/tess/${work}.hocr"
+exec_ok wget --quiet "http://digi.bib.uni-mannheim.de/fileadmin/digi/445442158/max/${work}.jpg"
+hocr-scale . > "${work}.scaled"
+file_not_empty "${work}.scaled"
+hocr-scale . --savefile
+file_not_empty "${work}.hocr"
+rm $work*
