@@ -48,19 +48,22 @@ class StdoutWrapper:
         sys.stdout.write(data)
 
 
-def export_pdf(playground, default_dpi, savefile=False):
+def export_pdf(data, default_dpi, savefile=False, text=None):
     """Create a searchable PDF from a pile of HOCR + JPEG"""
-    images = sorted(glob.glob(os.path.join(playground, '*.jpg')))
-    if len(images) == 0:
-        print("WARNING: No JPG images found in the folder", playground,
+    if os.path.isdir(data):  
+        files = sorted(glob.glob(os.path.join(data, '*.jpg')))
+    elif os.path.isfile(data):  
+        files = [ os.path.realpath(data) ]
+    if len(files) == 0:
+        print("WARNING: No JPG images found in the folder", data,
               "\nScript cannot proceed without them and will terminate now.\n")
         sys.exit(0)
     load_invisible_font()
     pdf = Canvas(savefile if savefile else StdoutWrapper(), pageCompression=1)
     pdf.setCreator('hocr-tools')
-    pdf.setTitle(os.path.basename(playground))
+    pdf.setTitle(os.path.basename(data))
     dpi = default_dpi
-    for image in images:
+    for image in files:
         im = Image.open(image)
         w, h = im.size
         try:
@@ -71,16 +74,19 @@ def export_pdf(playground, default_dpi, savefile=False):
         height = h * 72 / dpi
         pdf.setPageSize((width, height))
         pdf.drawImage(image, 0, 0, width=width, height=height)
-        add_text_layer(pdf, image, height, dpi)
+        add_text_layer(pdf, image, height, dpi, text)
         pdf.showPage()
     pdf.save()
 
 
-def add_text_layer(pdf, image, height, dpi):
+def add_text_layer(pdf, image, height, dpi, text):
     """Draw an invisible text layer for OCR data"""
     p1 = re.compile(r'bbox((\s+\d+){4})')
     p2 = re.compile(r'baseline((\s+[\d\.\-]+){2})')
-    hocrfile = os.path.splitext(image)[0] + ".hocr"
+    if text:
+        hocrfile = text
+    else:
+        hocrfile = os.path.splitext(image)[0] + ".hocr"
     hocr = etree.parse(hocrfile, html.XHTMLParser())
     for line in hocr.xpath('//*[@class="ocr_line"]'):
         linebox = p1.search(line.attrib['title']).group(1).split()
@@ -165,7 +171,8 @@ if __name__ == "__main__":
         "--savefile",
         help="Save to this file instead of outputting to stdout"
     )
+    parser.add_argument('-t', '--text', nargs='?', type=argparse.FileType('r'), default='image.hocr', help='input file, in HOCR format')
     args = parser.parse_args()
-    if not os.path.isdir(args.imgdir):
-        sys.exit("ERROR: Given path '" + args.imgdir + "' is not a directory")
-    export_pdf(args.imgdir, 300, args.savefile)
+    if not os.path.isdir(args.imgdir) and not os.path.isfile(args.imgdir):
+        sys.exit("ERROR: Given path '" + args.imgdir + "' is not a directory or a file")
+    export_pdf(args.imgdir, 300, args.savefile, args.text)

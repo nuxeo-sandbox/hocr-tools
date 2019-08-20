@@ -29,24 +29,29 @@ import sys
 import zlib
 
 from lxml import etree, html
-from PIL import Image
 
-def scale_hocr(playground, percentage=50, savefile=False):
-    """Create a searchable PDF from a pile of HOCR + JPEG"""
-    images = sorted(glob.glob(os.path.join(playground, '*.jpg')))
-    if len(images) == 0:
-        print("WARNING: No JPG images found in the folder", playground,
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+def scale_hocr(data, percentage=50, savefile=False):
+    """Scale the HOCR file with the given percentage factor"""
+    if os.path.isdir(data):  
+        files = sorted(glob.glob(os.path.join(data, '*.hocr')))
+    elif os.path.isfile(data):  
+        files = [ os.path.realpath(data) ]
+    if len(files) == 0:
+        print("WARNING: No HOCR files found at path ", data,
               "\nScript cannot proceed without them and will terminate now.\n")
         sys.exit(0)
-    for image in images:
-        _scale_hocr(image, percentage, savefile)
+    for hocr in files:
+        _scale_hocr(hocr, percentage, savefile)
 
-def _scale_hocr(image, percentage=50, savefile=False):
+def _scale_hocr(hocrfile, percentage=50, savefile=False):
     """Scale the text bounding box for hOCR data"""
     pct = percentage / 100.0
     p1 = re.compile(r'bbox((\s+\d+){4})')
     p2 = re.compile(r'baseline((\s+[\d\.\-]+){2})')
-    hocrfile = os.path.splitext(image)[0] + ".hocr"
+    eprint("Reading from %s" % (hocrfile))
     hocr = etree.parse(hocrfile, html.XHTMLParser())
     for line in hocr.xpath('//*[@class]'):
         title = line.attrib['title']
@@ -65,13 +70,13 @@ def _scale_hocr(image, percentage=50, savefile=False):
         if matched:
             box = matched.group(1).split()
             orig = "bbox %s" % " ".join(box)
-            box = [str(round(float(i) * pct)) for i in box]
+            box = ["{:.0f}".format(float(i) * pct) for i in box]
             bbox = "bbox %s" % " ".join(box)
             scaled = title.replace(orig, bbox)
             line.attrib['title'] = scaled
     scaled = etree.tostring(hocr)
     if savefile:
-        with open(hocrfile, "w") as f:
+        with open(savefile, "w") as f:
             f.write(scaled)
     else:
         print(scaled.decode('utf-8'))
@@ -81,14 +86,17 @@ if __name__ == "__main__":
         description="Scale coordinates for a given hOCR file")
     parser.add_argument(
         "imgdir",
-        help=("directory with the hOCR files")
+        help=("directory or path of hOCR files")
     )
     parser.add_argument('--percent', type=int, default=50, help='Scale percentage')
     parser.add_argument(
-        "--savefile", action='store_true', default=False,
+        "--savefile",
         help="Save to this file instead of outputting to stdout"
     )
     args = parser.parse_args()
-    if not os.path.isdir(args.imgdir):
-        sys.exit("ERROR: Given path '" + args.imgdir + "' is not a directory")
+    if args.percent == 0:
+        # Cowardly refusing to scale by 0
+        sys.exit(0)
+    if not os.path.isdir(args.imgdir) and not os.path.isfile(args.imgdir):
+        sys.exit("ERROR: Given path '" + args.imgdir + "' is not a file or directory")
     scale_hocr(args.imgdir, args.percent, args.savefile)
