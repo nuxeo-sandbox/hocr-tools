@@ -34,8 +34,6 @@ from reportlab.pdfgen.canvas import Canvas
 from lxml import etree, html
 from PIL import Image
 
-def eprint(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
 
 class StdoutWrapper:
     """
@@ -65,17 +63,16 @@ def export_pdf(data, default_dpi, savefile=False, text=None):
     pdf.setCreator('hocr-tools')
     pdf.setTitle(os.path.basename(data))
     dpi = default_dpi
+    dpi_scale = 72
     for image in files:
         im = Image.open(image)
         w, h = im.size
         try:
-            eprint(str(im.info))
             dpi = im.info['dpi'][0]
         except KeyError:
-            eprint('dpi not known')
             pass
-        width = w * 72 / dpi
-        height = h * 72 / dpi
+        width = w * dpi_scale / dpi
+        height = h * dpi_scale / dpi
         pdf.setPageSize((width, height))
         pdf.drawImage(image, 0, 0, width=width, height=height)
         add_text_layer(pdf, image, height, dpi, text)
@@ -124,6 +121,9 @@ def add_text_layer(pdf, image, height, dpi, text):
             text.setHorizScale(100.0 * box_width / font_width)
             text.textLine(rawtext)
             pdf.drawText(text)
+            pdf.setStrokeColorRGB(0.2,0.5,0.3)
+            box_height = (box[3] - box[1]) * 72 / dpi
+            pdf.rect(box[0] * 72 / dpi, height - b * 72 / dpi, box_width, box_height, stroke=1, fill=0) 
 
 
 def polyval(poly, x):
